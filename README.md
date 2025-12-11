@@ -1,3 +1,3 @@
 # TestREnlme
-ThanThank you for your interest.
+Thank you for your interest.
 This repository is being prepared, and the full package including code, documentation, and examples, will be added here shortly.
