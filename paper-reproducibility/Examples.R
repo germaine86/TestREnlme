@@ -3,6 +3,7 @@
 ## Theophylline example: full random-effects model
 ##
 ## This script reproduces the Theophylline analysis in which all three
+## Similar approach was used for skill acqisition data
 ## pharmacokinetic parameters are allowed to have corresponding random effects.
 ##
 ## Model:
