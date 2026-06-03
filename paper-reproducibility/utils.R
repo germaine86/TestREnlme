@@ -233,9 +233,9 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
 # ============================================================:
 #' Compute Jacobian matrix and fixed-effects predicted values
 #'
-#' Evaluates the Jacobian \eqn{R_i(\hat\theta_0)} of the nonlinear model
-#' function with respect to the random-effects parameters, and computes
-#' fitted values under the fixed-effects-only model.
+#' Evaluates the Jacobian \eqn{R_i(\hat\theta_0)} and \eqn{K_i(\hat\theta_0)}
+#' of the nonlinear modelfunction with respect to the random-effects parameters,
+#'  and computes fitted values under the fixed-effects-only model.
 #'
 #' @param data A \code{data.frame}.
 #' @param Expr A two-sided formula for the nonlinear model.
@@ -292,7 +292,7 @@ ZandYPred <- function(data, Expr0, Expr, group, random, Bhat0 = NULL,Bhat = NULL
 }
 
 # ============================================================:
-#' Build model expressions for MM/MMF estimation
+#' Build model expressions
 #'
 #' Constructs the set of model expressions needed by \code{\link{MM_base}}:
 #' the full expression with random effects substituted, the second-stage
@@ -305,7 +305,6 @@ ZandYPred <- function(data, Expr0, Expr, group, random, Bhat0 = NULL,Bhat = NULL
 #'   e.g. \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2")}.
 #' @param Expr A two-sided formula for the nonlinear model.
 #' @param start Named numeric vector of starting values.
-#' @param Q One-sided formula for the second-stage design. Default \code{~1}.
 #'
 #' @return A list with components \code{Expr}, \code{Expr1}, \code{Expr2},
 #'   \code{Expr_MM_all0}, \code{random0}, \code{start}, and
