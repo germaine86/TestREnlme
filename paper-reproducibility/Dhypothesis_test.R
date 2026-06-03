@@ -35,7 +35,8 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'
 #' Performs a nonparametric permutation test for all random effects or any
 #' user-specified subset, using the test statistic of Drikvandi et al.
-#' (2013) adapted for nonlinear mixed-effects models.
+#' (2013) adapted for nonlinear mixed-effects models in Uwimpuhwe et al.
+#' (2026).
 #'
 #' @param data A \code{data.frame} containing all model variables.
 #' @param Expr A two-sided formula specifying the nonlinear model
@@ -54,7 +55,7 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'   \code{c("B1 ~ B1 + bi1", ...)} is also supported for backward
 #'   compatibility.
 #' @param start A named numeric vector of starting values for all
-#'   parameters. Names must match those used in \code{Expr} (the
+#'   Expr parameters. Names must match those used in \code{Expr} (the
 #'   subject-specific parameter names, e.g., \code{ai1}, \code{ai2},
 #'   \code{ai3}). Good starting values can be obtained from a
 #'   preliminary call to \code{nls()} on the pooled data.
@@ -88,8 +89,6 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'       statistic, \eqn{p}-value, and decision (default).}
 #'     \item{\code{2}}{Also prints every 10th permutation counter.}
 #'   }
-#' @param perm_freq Integer. When \code{verbose = 2}, print a permutation
-#'   progress message every \code{perm_freq} permutations. Default \code{10}.
 #'
 #' @return An object of class \code{"Dtest"}, a list with components:
 #'   \describe{
@@ -148,8 +147,7 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
                               sig_alpha = 0.05,
                               kappa_max = 1e4,
                               RR_catof  = "kappa",
-                              verbose   = 1,
-                              perm_freq = 10) {
+                              verbose   = 1) {
 
   method   <- match.arg(method)
   
