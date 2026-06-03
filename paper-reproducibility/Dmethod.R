@@ -19,9 +19,7 @@
 #'   to its fixed-effects expression plus random effect (right-hand side).
 #'   For example, \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2",
 #'   "ai3 ~ B3 + bi3")} specifies that \code{ai1 = B1 + bi1},
-#'   \code{ai2 = B2 + bi2}, \code{ai3 = B3 + bi3}. The old notation
-#'   \code{c("B1 ~ B1 + bi1", ...)} is also supported for backward
-#'   compatibility.
+#'   \code{ai2 = B2 + bi2}, \code{ai3 = B3 + bi3}.
 #' @param start A named numeric vector of starting values for all
 #'   parameters. Names must match those used in \code{Expr} (the
 #'   subject-specific parameter names, e.g., \code{ai1}, \code{ai2},
