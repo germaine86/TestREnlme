@@ -2,9 +2,11 @@
 ################################################################################
 ## Theophylline example: full random-effects model
 ##
-## This script reproduces the Theophylline analysis in which all three
-## Similar approach was used for skill acqisition data
-## pharmacokinetic parameters are allowed to have corresponding random effects.
+## This script reproduces the Theophylline analysis reported in 
+## Uwimpuhwe et al. (2026), where all three pharmacokinetic parameters 
+## are allowed to have corresponding random effects. 
+## The same workflow can be applied to the skill acquisition example 
+## presented in the paper.
 ##
 ## Model:
 ##   C_i  = exp(ai1)  : clearance-related parameter
