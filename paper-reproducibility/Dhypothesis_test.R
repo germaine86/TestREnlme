@@ -89,6 +89,8 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'       statistic, \eqn{p}-value, and decision (default).}
 #'     \item{\code{2}}{Also prints every 10th permutation counter.}
 #'   }
+#' @param perm_freq Integer. When \code{verbose = 2}, print a permutation
+#'   progress message every \code{perm_freq} permutations. Default \code{10}.
 #'
 #' @return An object of class \code{"Dtest"}, a list with components:
 #'   \describe{
@@ -147,7 +149,8 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
                               sig_alpha = 0.05,
                               kappa_max = 1e4,
                               RR_catof  = "kappa",
-                              verbose   = 1) {
+                              verbose   = 1,
+                              perm_freq = 10) {
 
   method   <- match.arg(method)
   
@@ -212,6 +215,10 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
         Ystar[idx] <- sample(Newdata$Ystar[idx], replace = FALSE)
     }
     PYstar[, b] <- Ystar
+    
+    ## Progress message every perm_freq permutations
+    if (verbose >= 2 && b %% perm_freq == 0)
+      .vcat(verbose, 2, "  Permutation ", b, " / ", nperm, " done.")
   }
   Yperm <- sweep(PYstar, 1, Newdata$Pred_H0, FUN = "+")
   
