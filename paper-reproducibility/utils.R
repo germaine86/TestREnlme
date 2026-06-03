@@ -29,9 +29,10 @@
               " is not positive definite; ",
               "replacing with nearest positive-definite matrix.",
               call. = FALSE)
-    M <- as.matrix(Matrix::nearPD(M, corr = FALSE,
-                                   keepDiag = FALSE,
-                                   maxit = 1000)$mat)
+    eig <- eigen(M, symmetric = TRUE)
+    eig$values <- pmax(eig$values, 0)
+    M <- eig$vectors %*% diag(eig$values, nrow = length(eig$values)) %*% t(eig$vectors)
+    M <- (M + t(M)) / 2  ## enforce symmetry
   }
   M
 }
