@@ -1,7 +1,7 @@
 #' Estimate variance components in a nonlinear mixed-effects model
 #'
 #' Computes the scaled variance--covariance matrix \eqn{\hat D_*} and the
-#' error variance \eqn{\hat\sigma^2} using one of four nonparametric
+#' error variance \eqn{\hat\sigma^2} using one of three nonparametric
 #' estimators: Variance Least Squares (\code{"VLS"}),
 #' Method of Moments (\code{"MM"}), or Method of Moments with 
 #' First-Order Approximation (\code{"MMF"}).
