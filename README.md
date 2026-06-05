@@ -1,3 +1,3 @@
-The **TestREnlme** package is currently under active development and is not yet publicly available. Thank you for your interest and patience.
-
+Thank you for your interest in **TestREnlme**.
+This repository is currently being prepared. The full package, including source code, documentation, examples, and reproducibility materials, will be added shortly.
 
