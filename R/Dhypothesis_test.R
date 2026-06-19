@@ -165,7 +165,7 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
 
   method   <- match.arg(method)
 
-   ## --- Step 1: estimate D* if not supplied ---------------------------
+  ## --- Step 1: estimate D* if not supplied ---------------------------
   if (is.null(Dhatt)) {
     .vcat(verbose, 1, "\nDhypothesis_test: computing variance components ...")
     if(missing(start)){
@@ -263,10 +263,8 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
         "\n  p-value  = ", pval,
         "\n  Decision : ", decision, "\n")
 
-  ## --- Build permutation histogram plot --------------------------------
-  plt <- .perm_hist_plot(Tperm, Thatt, pval, decision, bi_out)
-
-  structure(
+  ## --- return structure --------------------------------
+  H <- structure(
     list(
       Decision       = decision,
       pvalue         = pval,
@@ -274,11 +272,16 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
       Tperm          = Tperm,
       Dhatt          = Dhatt,
       bi_out         = bi_out,
-      plot           = plt
+      plot           = NULL
     ),
     internal = list(pvalue_num = pvalue_num),
     class = "Dtest"
   )
+
+  ## --- Build permutation histogram plot --------------------------------
+  H$plot <- plot_perm_hist(H)
+
+  H
 }
 
 
@@ -323,44 +326,7 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
 }
 
 
-# ============================================================
-# Permutation histogram ggplot
-# ============================================================
-#' @keywords internal
-.perm_hist_plot <- function(Tperm, Tobs, pval, decision, bi_out) {
-  df  <- data.frame(T = Tperm)
-
-  pval_label <- if (pval == "< 0.001") "< 0.001" else paste0("= ", round(as.numeric(pval), 4))
-  title <- if (is.null(bi_out)) { "Permutation test under H0: all random effects" } else {
-    paste0("Permutation test under H0: ", paste(bi_out, collapse = ", "))  }
-
-  ggplot2::ggplot(df, ggplot2::aes(x = T)) +
-    ggplot2::geom_histogram(bins = 30,
-                            fill = "steelblue", colour = "white",
-                            alpha = 0.8) +
-    ggplot2::geom_vline(xintercept = Tobs,
-                        linetype = "dashed", colour = "red",
-                        linewidth = 1) +
-    ggplot2::annotate("text",
-                      x = Tobs, y = Inf,
-                      label = paste0(" T[obs]==", round(Tobs, 4)),
-                      parse = TRUE,
-                      hjust = -0.1, vjust = 1.5,
-                      colour = "red", size = 3.5) +
-    ggplot2::annotate("text",
-                      x = -Inf, y = Inf,
-                      label = paste0("p ", pval_label, "\n", decision),
-                      hjust = -0.05, vjust = 1.5,
-                      size = 3.5) +
-    ggplot2::labs(
-      title    = title,
-      x        = "Test statistic T",
-      y        = "Count"
-    ) +
-    ggplot2::theme_bw()
-}
-
-# ============================================================
+#' # =========================================================
 # Print / summary for Dtest
 # ============================================================
 
