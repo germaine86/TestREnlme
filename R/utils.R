@@ -1,9 +1,9 @@
 #' @keywords internal
 .pkg_env <- new.env(parent = emptyenv())
 
-# ============================================================:
+# ============================================================
 # Verbose helper
-# ============================================================:
+# ============================================================
 
 #' @keywords internal
 .vcat <- function(verbose, level, ...) {
@@ -17,10 +17,11 @@
   }
 }
 
-# ============================================================:
+# ============================================================
 # Nearest positive-definite correction
-# ============================================================:
-
+# ============================================================
+#' @importFrom matrixcalc is.positive.semi.definite
+#' @importFrom Matrix nearPD
 #' @keywords internal
 .nearest_pd <- function(M, warn = TRUE, name = "D") {
   if (!matrixcalc::is.positive.semi.definite(M + diag(1e-12, nrow(M)))) {
@@ -29,15 +30,77 @@
               " is not positive definite; ",
               "replacing with nearest positive-definite matrix.",
               call. = FALSE)
-    eig <- eigen(M, symmetric = TRUE)
-    eig$values <- pmax(eig$values, 0)
-    M <- eig$vectors %*% diag(eig$values, nrow = length(eig$values)) %*% t(eig$vectors)
-    M <- (M + t(M)) / 2  ## enforce symmetry
+    M <- as.matrix(Matrix::nearPD(M, corr = FALSE,
+                                  keepDiag = FALSE,
+                                  maxit = 1000)$mat)
   }
   M
 }
 
-# ============================================================:
+
+# ============================================================
+# Automatically compute starting values via multi-start NLS
+# ============================================================
+#' Compute starting values automatically via multi-start NLS
+#'
+#' Internal helper used when \code{start} is not supplied by the user.
+#' Identifies model parameters in \code{Expr} (symbols not present in
+#' \code{data}), and searches for starting values using
+#' \code{nls.multstart::nls_multstart()}, which tries multiple starting
+#' points within \eqn{\pm}\code{range} for each parameter and refits an
+#' \code{nls()} model on the pooled data (ignoring random effects
+#' and grouping structure) from each, keeping the best-converging fit.
+#'
+#' @param data A \code{data.frame} containing model variables.
+#' @param Expr A two-sided formula specifying the nonlinear model; see
+#'   \code{\link{Dmethod}}.
+#' @param range Numeric. Half-width of the symmetric search range
+#'   (\eqn{\pm}\code{range}) used for each parameter. Default \code{10}.
+#'
+#' @return A named numeric vector of starting values, suitable for use
+#'   as the \code{start} argument of \code{\link{Dmethod}} and related
+#'   functions.
+#'
+#' @importFrom nls.multstart nls_multstart
+#' @keywords internal
+.auto_start <- function(data, Expr, range = 10) {
+  #param
+  X_parm <- setdiff(all.vars(Expr)[-1], names(data))
+  k      <- length(X_parm)
+  #ranges
+  start_lower <- setNames(rep(-range, k), X_parm)
+  start_upper <- setNames(rep( range, k), X_parm)
+
+  #nls model
+  fit <- try(
+    nls.multstart::nls_multstart(
+      Expr,
+      data        = data,
+      start_lower = start_lower,
+      start_upper = start_upper,
+      iter        = 250,
+      supp_errors = "Y"
+    ),
+    silent = TRUE
+  )
+
+  #error message
+  if (inherits(fit, "try-error") || is.null(fit)) {
+    err_msg <- if (inherits(fit, "try-error")) attr(fit, "condition")$message else "no model converged"
+    stop(
+      "Automatic computation of starting values via nls_multstart() failed.\n",
+      "Original error: ", err_msg, "\n",
+      "Please supply 'start' manually, or try nls_multstart() with ",
+      "different search bounds (start_lower/start_upper).",
+      call. = FALSE
+    )
+  }
+
+  coef(fit)
+}
+
+
+# ============================================================
 #' Estimate fixed effects by nonlinear least squares
 #'
 #' Estimates the fixed-effects parameter vector by unweighted NLS (first
@@ -45,11 +108,14 @@
 #' \code{\link[stats]{nlminb}} when \code{weights} is supplied or when the
 #' unweighted NLS fails. Used both for initial unweighted estimation and for
 #' GLS re-estimation at the end of VLS using the estimated variance
-#' components to construct weight.
+#' components.
 #'
 #' @param data A \code{data.frame} containing all model variables.
 #' @param Expr A two-sided formula specifying the nonlinear model.
-#' @param start A named numeric vector of starting values.
+#' @param start A named numeric vector of starting values. See the
+#'   \code{start} argument of \code{\link{Dmethod}} for details,
+#'   including automatic computation via
+#'   \code{nls.multstart::nls_multstart()} when not supplied.
 #' @param weights Either \code{NULL} (default, unweighted), a numeric vector
 #'   of weights, or a named list of per-subject inverse covariance matrices
 #'   (used for GLS re-estimation after variance components are estimated).
@@ -60,41 +126,37 @@
 #' @return A named numeric vector of estimated fixed effects.
 #'
 #' @examples
-#' data("Theoph", package = "nlme")
-#' d      <- as.data.frame(Theoph)
+#'
 #' Expr   <- conc ~ Dose * exp(ai2 + ai3 - ai1) *
 #'             (exp(-Time * exp(ai3)) - exp(-Time * exp(ai2))) /
 #'             (exp(ai2) - exp(ai3))
 #' start  <- c(ai1 = -3.22, ai2 = 0.47, ai3 = -2.45)
-#' Beta_hat(d, Expr, start)
+#' Beta_hat(as.data.frame(Theoph), Expr, start)
 #'
+#' @importFrom stats nls coef nlminb setNames as.formula
+#' @importFrom nls.multstart nls_multstart
 #' @export
 Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
                      verbose = 1) {
-  
+
+
+  ## --- Automatic starting values -----------------------
+  #if (missing(start)) start <- .auto_start(data, Expr)
+
   ## Unweighted NLS as first try (skip if weights supplied)
   BOLS <- NULL
   if (is.null(weights)) {
     .vcat(verbose, 2, "  Beta_hat: trying unweighted NLS ...")
-    Beta_hat_fct <- function(data,Expr, start){
-      Expr0 <- as.character(Expr)
-      Expr1 <- Expr0[grep(paste(all.vars(Expr)[-1],collapse="|"), Expr0)]
-      Expr2 <- parse(text = Expr1)
-      Xs <- all.vars(Expr)[-1][!all.vars(Expr)[-1]%in% names(start)]
-      outcome <-   all.vars(Expr)[1]
-      Y_all <- data[,outcome]
-      YPred <- eval(parse(text = Expr0), c(as.list(data),start))
-      sum(abs(Y_all-YPred)^2)
-    }
-    BOLS <- tryCatch(nlminb(start,  objective=Beta_hat_fct, data=data, Expr=Expr, control=list(iter.max=200000)),error = function(e) NULL)$par
-    BOLS <- if(is.null(BOLS)) 
-      tryCatch( coef(nls(Expr, data = data, start = as.list(start), control = nls.control(maxiter = 200000))), error = function(e) NULL) else BOLS
+    BOLS <- tryCatch(
+      coef(nls(Expr, data = data, start = as.list(start),
+               control = nls.control(maxiter = 200000))),
+      error = function(e) NULL)
   }
-  
+
   ## Fall back to nlminb (also used for weighted estimation)
   if (is.null(BOLS)) {
     .vcat(verbose, 2, "  Beta_hat: using nlminb ...")
-    
+
     Beta_hat_fct <- function(par, data, Expr, weights, group) {
       Expr0 <- as.character(Expr)[3]
       Yvar  <- all.vars(Expr)[1]
@@ -102,7 +164,7 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
       for (ii in names(par)) data[[ii]] <- par[ii]
       preds  <- eval(parse(text = Expr0), data)
       resids <- Y_all - preds
-      
+
       if (is.null(weights)) {
         return(sum(resids^2))
       } else if (!is.list(weights)) {
@@ -121,7 +183,7 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
              call. = FALSE)
       }
     }
-    
+
     OptBeta <- try(nlminb(start,
                           objective = Beta_hat_fct,
                           data      = data,
@@ -130,7 +192,7 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
                           group     = group,
                           control   = list(iter.max = 200000)),
                    silent = TRUE)
-    
+
     BOLS <- if (!inherits(OptBeta, "try-error")) {
       OptBeta$par
     } else {
@@ -139,47 +201,11 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
     }
     names(BOLS) <- names(start)
   }
-  
+
   BOLS
 }
-# ============================================================================:
-#' Second-stage weighted GLS beta estimate for MM methods
-#'
-#' Computes \eqn{\hat\beta_{\text{MM}}} using the two-stage generalised least
-#' squares formula (Davidian & Giltinan 1995, eq. 8.22).
-#'
-#' @param Aai       List with `Ai` (per-subject design matrices) and `a0i`
-#'   (per-subject coefficient matrix), as returned by [Dhat_MM_base()].
-#' @param k         Integer. Number of random-effect parameters.
-#' @param Ti        List of per-subject scaled covariance matrices.
-#' @param Dhat      Estimated D matrix.
-#' @param start     Named numeric starting-value vector.
-#' @param MM_IDworks Integer vector of retained subject indices.
-#' @param random    Named vector of random-effects formulas.
-#'
-#' @return Named numeric vector of fixed-effect estimates.
-#' @keywords internal
-.Beta_MM_TS <- function(Aai, k, Ti, Dhat, start, MM_IDworks = NULL, random) {
-  Ai   <- Aai$Ai
-  a0i  <- Aai$a0i
-  if (is.null(MM_IDworks)) MM_IDworks <- seq_len(nrow(a0i))
-  
-  ATDA_i  <- lapply(MM_IDworks, function(x) t(Ai[[x]]) %*% solve(Ti[[x]] + Dhat) %*% Ai[[x]])
-  ATDa_i  <- lapply(MM_IDworks, function(x) t(Ai[[x]]) %*% solve(Ti[[x]] + Dhat) %*% a0i[x, ])
-  SATDA_i <- Reduce("+", ATDA_i)
-  SATDa_i <- Reduce("+", ATDa_i)
-  Beta    <- c(solve(SATDA_i) %*% SATDa_i)
-  
-  # Recover parameter names from random formulas
-  names(random) <- gsub("~.*| ", "", random)
-  random <- random[names(start)]
-  names0 <- strsplit(gsub(".*~| ", "", random), split = "\\+")
-  names1 <- unlist(lapply(names0, function(x) gsub("\\*.*| ", "", x[-length(x)])))
-  names(Beta) <- names1
-  Beta
-}
 
-# ============================================================================:
+# ============================================================================
 # Within-cluster variance estimators
 
 #' Pooled within-cluster variance for MM methods
@@ -189,7 +215,6 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
 #' number of parameters in `start`.
 #'
 #' @param data  A `data.frame`.
-#' @param start Named numeric starting-value vector (length = *k*).
 #' @param Expr  First-stage formula.
 #' @param group Character. Grouping column name.
 #'
@@ -197,26 +222,25 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
 #' @keywords internal
 
 
-.Sigma2hat_MM <- function(data, start, Expr, group){
+.Sigma2hat_MM <- function(data, COEFs, Expr, group){
   #1. data and Expression
   #---~---~---~---~---~-
+  COEF_all0 <- COEFs[rowSums(is.na(COEFs)) != ncol(COEFs), ]
   outcome <-   all.vars(Expr)[1]
-  lhs <- as.character(Expr)[3]
-  k <- length(start)#ncol(start)
+  k <- ncol(COEFs)
   Nt <- nrow(data)
   id <- data[,group]#id
   uid <- unique(id)
   nud <- length(uid)
   SSE <-  dfpool <- 0
   SSE1 <- NULL
-  
+
   #2.Loop through clusters
   #---~---~---~---~---
-  data[,names(start)] <-NULL
   for(i in 1:nud) {
     data_i <- data[id==uid[i],]
-    Bhat_i <- Beta_hat(data_i, Expr, start)
-    ypred <- eval(parse(text=lhs),c(as.list(data_i),Bhat_i) )
+    data_i[,names(COEFs)] <-NULL
+    ypred <- eval(parse(text=as.character(Expr)[3]),c(as.list(data_i),c(COEFs[as.character(uid[i]),]) ))
     y_i <- data_i[,outcome]
     SSE1 <- c(SSE1, sum((y_i-ypred)^2))
     SSE <- SSE+sum((y_i-ypred)^2)
@@ -229,23 +253,25 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
 }
 
 
-
-# ============================================================:
+# ============================================================
 #' Compute Jacobian matrix and fixed-effects predicted values
 #'
-#' Evaluates the Jacobian \eqn{R_i(\hat\theta_0)} and \eqn{K_i(\hat\theta_0)}
-#' of the nonlinear modelfunction with respect to the random-effects parameters,
-#'  and computes fitted values under the fixed-effects-only model.
+#' Evaluates the Jacobian \eqn{R_i(\hat\theta_0)} of the nonlinear model
+#' function with respect to the random-effects parameters, and computes
+#' fitted values under the fixed-effects-only model.
 #'
 #' @param data A \code{data.frame}.
 #' @param Expr A two-sided formula for the nonlinear model.
 #' @param group Character name of the grouping variable.
 #' @param random A named list or vector of one-sided formulas mapping each
 #'   parameter to its random-effect expression, e.g.
-#'   \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2")}.
-#' @param Bhat Named numeric vector of fixed-effects estimates from
+#'   \code{c(B1 ~ B1 + bi1, B2 ~ B2 + bi2)}.
+#' @param Beta_nls Named numeric vector of fixed-effects estimates from
 #'   \code{\link{Beta_hat}}.
-#'
+#' @param start A named numeric vector of starting values. See the
+#'   \code{start} argument of \code{\link{Dmethod}} for details,
+#'   including automatic computation via
+#'   \code{nls.multstart::nls_multstart()} when not supplied.
 #' @return A list with components:
 #'   \describe{
 #'     \item{\code{R}}{Named list of per-subject Jacobian matrices
@@ -256,43 +282,46 @@ Beta_hat <- function(data, Expr, start, weights = NULL, group = NULL,
 #'       \eqn{\hat e_i = Y_i - f_i}.}
 #'   }
 #'
+#' @importFrom stats D setNames
+#' @importFrom mgsub mgsub
 #' @export
-ZandYPred <- function(data, Expr0, Expr, group, random, Bhat0 = NULL,Bhat = NULL, start = NULL,Dnames) {
-  if (is.null(Bhat0))  Bhat0 <- Beta_hat(data = data, Expr = Expr0, start = start[Dnames])
-  if (is.null(Bhat))  Bhat <- Beta_hat(data = data, Expr = Expr, start = start)
+ZandYPred <- function(data, Expr, group, random, Beta_nls = NULL, start = NULL) {
+
+
+  #if (missing(start)) start <- .auto_start(data, Expr)
+  if (is.null(Beta_nls))  Beta_nls <- Beta_hat(data = data, Expr = Expr, start = start)
   id    <- data[[group]]
   Yvar  <- as.character(Expr[[2]])
   rhs   <- as.character(Expr)[3]
-  rhs0  <- as.character(Expr0)[3]
-  ldata <- c(as.list(data), as.list(Bhat))
-  ldata0<- c(as.list(data), as.list(Bhat0))
+  ldata <- c(as.list(data), as.list(Beta_nls))
 
   ## Design matrices for FE (K) and RE (R)
-  K0 <- lapply(names(Bhat), function(x) eval(D(parse(text = rhs), x), ldata))
-  R0 <- lapply(Dnames,      function(x) eval(D(parse(text = rhs0), x), ldata0))
-  K  <- as.matrix(setNames(data.frame(Reduce("cbind", K0)), names(Bhat)))
+  Dnames <- setNames(gsub("~.*| ","", random),gsub(".*\\+\\s*","", random))
+  K0 <- lapply(names(Beta_nls), function(x) eval(D(parse(text = rhs), x), ldata))
+  R0 <- lapply(Dnames,      function(x) eval(D(parse(text = rhs), x), ldata))
+  K  <- as.matrix(setNames(data.frame(Reduce("cbind", K0)), names(Beta_nls)))
   R  <- as.matrix(setNames(data.frame(Reduce("cbind", R0)), Dnames))
-  
+
   ## Fitted values and residuals
   data$yp <- eval(parse(text = rhs), ldata)
   data$y  <- data[[Yvar]]
   data$e  <- data$y - data$yp
-  
+
   ## Split into per-subject lists
   ids        <- unique(id)
   K_list     <- lapply(ids, function(i) K[id == i, , drop = FALSE])
   R_list     <- lapply(ids, function(i) R[id == i, , drop = FALSE])
   Ypred_list <- lapply(ids, function(i) data$yp[id == i])
   resid_list <- lapply(ids, function(i) data$e[id == i])
-  
+
   names(K_list) <- names(R_list) <-
     names(Ypred_list) <- names(resid_list) <- ids
-  
+
   list(R = R_list, K = K_list, Ypred = Ypred_list, residuals = resid_list)
 }
 
-# ============================================================:
-#' Build model expressions
+# ============================================================
+#' Build model expressions for MM/MMF estimation
 #'
 #' Constructs the set of model expressions needed by \code{\link{MM_base}}:
 #' the full expression with random effects substituted, the second-stage
@@ -302,24 +331,30 @@ ZandYPred <- function(data, Expr0, Expr, group, random, Bhat0 = NULL,Bhat = NULL
 #' @param data A \code{data.frame}.
 #' @param group Character. Name of the grouping variable.
 #' @param random Named character vector of random-effects formulas,
-#'   e.g. \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2")}.
+#'   e.g. \code{c("B1 ~ B1 + bi1", "B2 ~ B2 + bi2")}.
 #' @param Expr A two-sided formula for the nonlinear model.
-#' @param start Named numeric vector of starting values.
+#' @param start Named numeric vector of starting values. See the
+#'   \code{start} argument of \code{\link{Dmethod}} for details,
+#'   including automatic computation via
+#'   \code{nls.multstart::nls_multstart()} when not supplied.
 #'
 #' @return A list with components \code{Expr}, \code{Expr1}, \code{Expr2},
 #'   \code{Expr_MM_all0}, \code{random0}, \code{start}, and
 #'   \code{start_MM_all}.
 #'
+#' @importFrom stats as.formula setNames rnorm
 #' @keywords internal
 Expressions <- function(data, group, random, Expr, start) {
-  
-  ## 1. Extract Q: subject level design 
+  ## 1. Extract Q: subject level design
   Q0 <- all.vars(as.formula(random[[1]]))
   Q1 <- intersect(Q0, names(data))
   Q2 <- if (length(Q1)==0) {"~1"} else {paste("~", paste(Q1,collapse = "+"))}
   Q <- as.formula(Q2)
-  
-  #Fixed
+
+  ## --- Automatic starting values -----------------------
+  #if (missing(start)) start <- .auto_start(data, Expr)
+
+  #RHS
   Fixed  <- names(start)
   Random <- trimws(sub("~.*", "", random))
   QRHS   <- setNames(trimws(sub(".*~", "", random)), Random)
@@ -354,7 +389,7 @@ Expressions <- function(data, group, random, Expr, start) {
   N            <- length(unique(data[, group]))
   NStart       <- setNames(names(start), names(start))
   start_MM_all <- lapply(NStart,
-    function(x) if (x %in% Random) rep(start[x], N) else start[x])
+                         function(x) if (x %in% Random) rep(start[x], N) else start[x])
 
   list(
     Expr         = Expr,
