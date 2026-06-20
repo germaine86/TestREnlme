@@ -122,7 +122,12 @@ Dmethod <- function(data, Expr, group, random, start,
 
 
   ## --- Automatic starting values -----------------------
-  if (missing(start)) start <- .auto_start(data, Expr)
+  if (missing(start)) start <- .auto_start(data, Expr )
+  ## --- Reorder start to follow random's canonical order, then any
+  ##     remaining (pure fixed-effect) names -----------------------
+  random_names <- gsub("~.*| ", "", random)
+  STnames      <- c(random_names, setdiff(names(start), random_names))
+  start        <- start[STnames]
   Start_orig <-  start
 
   ## --- Map random, Expr and start from ai to B names -----------------------
@@ -322,7 +327,7 @@ Dmethod <- function(data, Expr, group, random, start,
   ## Dhat and positive definite correction
   Dhat <- matrix(vls[-1], k, k)
   Dhat <- (Dhat + t(Dhat)) / 2
-  Dhat <- .nearest_pd(Dhat, warn = TRUE, name = "D (VLS)")
+  Dhat <- .nearest_pd(Dhat, warn = FALSE, name = "D (VLS)")
   rownames(Dhat) <- colnames(Dhat) <- names(re_names)
 
   .vcat(verbose, 1, "  VLS: done. Sigma2 = ", round(sigma2, 6))
@@ -357,7 +362,7 @@ Dmethod <- function(data, Expr, group, random, start,
                  function(i) ddi[[i]] - mb$Lamda * Ti0[[i]])
   Dmm  <- Reduce("+", ddTi) / nud
   Dhat <- (Dmm + t(Dmm)) / 2# symetric
-  Dhat <- .nearest_pd(Dhat, warn = TRUE, name = "D (MM)")
+  Dhat <- .nearest_pd(Dhat, warn = FALSE, name = "D (MM)")
   rownames(Dhat) <- colnames(Dhat) <- names(re_names)
   #Return
   list(Dhat = Dhat, Sigma2 = mb$sigma2)
@@ -397,7 +402,7 @@ Dmethod <- function(data, Expr, group, random, start,
 
   # Positive definite
   Dhat <- (Dmm_FA + t(Dmm_FA)) / 2
-  Dhat <- .nearest_pd(Dhat, warn = TRUE, name = "D (MMF)")
+  Dhat <- .nearest_pd(Dhat, warn = FALSE, name = "D (MMF)")
   rownames(Dhat) <- colnames(Dhat) <- names(re_names)
 
   #Return

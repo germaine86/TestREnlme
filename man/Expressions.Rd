@@ -4,7 +4,7 @@
 \alias{Expressions}
 \title{Build model expressions for MM/MMF estimation}
 \usage{
-Expressions(data, group, random, Expr, start)
+Expressions(data, group, random, Expr, start, seed = 123)
 }
 \arguments{
 \item{data}{A \code{data.frame}.}
@@ -20,6 +20,10 @@ e.g. \code{c("B1 ~ B1 + bi1", "B2 ~ B2 + bi2")}.}
 \code{start} argument of \code{\link{Dmethod}} for details,
 including automatic computation via
 \code{nls.multstart::nls_multstart()} when not supplied.}
+
+\item{seed}{Optional integer for reproducible draws of starting values
+for between-subjects parameters via \code{withr::with_seed()}.
+Default \code{123}.}
 }
 \value{
 A list with components \code{Expr}, \code{Expr1}, \code{Expr2},

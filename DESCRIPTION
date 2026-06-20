@@ -36,12 +36,13 @@ Imports:
     MASS (>= 7.3-54),
     mgsub (>= 1.7.3),
     matrixcalc (>= 1.0-5),
-    expm (>= 0.999-6),
+    nls.multstart (>= 2.0.0),
     ggplot2 (>= 3.3.5),
+    expm (>= 0.999-6),
+    withr (>= 3.0.2),
     stats,
     utils,
-    rlang,
-    nls.multstart (>= 2.0.0)
+    rlang
 Suggests:
     knitr,
     rmarkdown,

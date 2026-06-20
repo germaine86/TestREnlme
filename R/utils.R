@@ -56,6 +56,9 @@
 #'   \code{\link{Dmethod}}.
 #' @param range Numeric. Half-width of the symmetric search range
 #'   (\eqn{\pm}\code{range}) used for each parameter. Default \code{10}.
+#' @param seed Optional integer for reproducible starting values via
+#'   \code{withr::with_seed()}. Default \code{123}; use \code{NULL} for
+#'   an unseeded search.
 #'
 #' @return A named numeric vector of starting values, suitable for use
 #'   as the \code{start} argument of \code{\link{Dmethod}} and related
@@ -63,7 +66,7 @@
 #'
 #' @importFrom nls.multstart nls_multstart
 #' @keywords internal
-.auto_start <- function(data, Expr, range = 10) {
+.auto_start <- function(data, Expr, range = 10, seed=123) {
   #param
   X_parm <- setdiff(all.vars(Expr)[-1], names(data))
   k      <- length(X_parm)
@@ -72,17 +75,19 @@
   start_upper <- setNames(rep( range, k), X_parm)
 
   #nls model
-  fit <- try(
-    nls.multstart::nls_multstart(
-      Expr,
-      data        = data,
-      start_lower = start_lower,
-      start_upper = start_upper,
-      iter        = 250,
-      supp_errors = "Y"
-    ),
-    silent = TRUE
-  )
+  fit_call <- function() {
+    try(
+      nls.multstart::nls_multstart(
+        Expr,
+        data        = data,
+        start_lower = start_lower,
+        start_upper = start_upper,
+        iter        = 250,
+        supp_errors = "Y"
+      ),
+      silent = TRUE)
+  }
+  fit <- if (!is.null(seed)) withr::with_seed(seed, fit_call()) else fit_call()
 
   #error message
   if (inherits(fit, "try-error") || is.null(fit)) {
@@ -337,14 +342,16 @@ ZandYPred <- function(data, Expr, group, random, Beta_nls = NULL, start = NULL) 
 #'   \code{start} argument of \code{\link{Dmethod}} for details,
 #'   including automatic computation via
 #'   \code{nls.multstart::nls_multstart()} when not supplied.
-#'
+#' @param seed Optional integer for reproducible draws of starting values
+#'   for between-subjects parameters via \code{withr::with_seed()}.
+#'   Default \code{123}.
 #' @return A list with components \code{Expr}, \code{Expr1}, \code{Expr2},
 #'   \code{Expr_MM_all0}, \code{random0}, \code{start}, and
 #'   \code{start_MM_all}.
 #'
 #' @importFrom stats as.formula setNames rnorm
 #' @keywords internal
-Expressions <- function(data, group, random, Expr, start) {
+Expressions <- function(data, group, random, Expr, start, seed=123) {
   ## 1. Extract Q: subject level design
   Q0 <- all.vars(as.formula(random[[1]]))
   Q1 <- intersect(Q0, names(data))
@@ -375,7 +382,13 @@ Expressions <- function(data, group, random, Expr, start) {
     Expr2[[3]] <- mgsub::mgsub(Expr2[[3]], names(QRHS1), QRHS2)
     Expr2      <- Reduce("paste", Expr2[c(2, 1, 3)])
     newPar     <- setdiff(all.vars(as.formula(Expr2)), c(Fixed, names(data)))
-    start0     <- setNames(rnorm(length(newPar)), newPar)
+
+    #start0     <- setNames(rnorm(length(newPar)), newPar)
+    if (length(newPar) > 0) {
+      draw_start0 <- function() setNames(rnorm(length(newPar)), newPar)
+      start0 <- if (!is.null(seed)) withr::with_seed(seed, draw_start0()) else draw_start0()
+    } else { start0 <- numeric(0) }
+
     New_start  <- c(start, start0)
     New_start  <- New_start[names(New_start) %in% all.vars(as.formula(Expr2))]
   }

@@ -104,6 +104,10 @@ MM_base <- function(data, Expr, group, random, start,
 
   ## 0. Align random with start
   names(random) <- gsub("~.*| ", "", random)
+  if (missing(start)) {start <- .auto_start(data, Expr) }
+  STnames <- c(names(random), setdiff(names(start), names(random)))
+  start   <-  start[STnames]
+
   random <- random[intersect(names(random), names(start))]
   re_names <- setNames(gsub("~.*| ","", random),gsub(".*\\+| ","", random))
 

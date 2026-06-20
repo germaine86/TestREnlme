@@ -4,7 +4,7 @@
 \alias{.auto_start}
 \title{Compute starting values automatically via multi-start NLS}
 \usage{
-.auto_start(data, Expr, range = 10)
+.auto_start(data, Expr, range = 10, seed = 123)
 }
 \arguments{
 \item{data}{A \code{data.frame} containing model variables.}
@@ -14,6 +14,10 @@
 
 \item{range}{Numeric. Half-width of the symmetric search range
 (\eqn{\pm}\code{range}) used for each parameter. Default \code{10}.}
+
+\item{seed}{Optional integer for reproducible starting values via
+\code{withr::with_seed()}. Default \code{123}; use \code{NULL} for
+an unseeded search.}
 }
 \value{
 A named numeric vector of starting values, suitable for use
