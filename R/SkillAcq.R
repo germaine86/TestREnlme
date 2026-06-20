@@ -36,8 +36,8 @@
 #' model; see \code{\link{Dhypothesis_test}}.
 #'
 #' @source Blozis, S. A. (2004). Structured latent curve models for the
-#' study of change in multivariate repeated measures.
-#' \emph{Psychological Methods}, \strong{9(3)}, 334--353.
+#'  study of change in multivariate repeated measures.
+#' \emph{Psychological Methods}, \strong{9(3)}, 334.
 #'
 #' Used as a worked example in Uwimpuhwe, G., Drikvandi, R. and Blozis,
 #' S. A. (in preparation). TestREnlme: An R Package for Testing Random
