@@ -21,11 +21,10 @@
 #'   For example, \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2",
 #'   "ai3 ~ B3 + bi3")} specifies that \code{ai1 = B1 + bi1},
 #'   \code{ai2 = B2 + bi2}, \code{ai3 = B3 + bi3}.
-#' @param start A named numeric vector of starting values for all \code{Expr}
-#'   parameters. Names must match those used in \code{Expr} (the
-#'   subject-specific parameter names, e.g., \code{ai1}, \code{ai2},
-#'   \code{ai3}). Good starting values can be obtained from a
-#'   preliminary call to \code{nls()} on the pooled data.
+#' @param start A named numeric vector of starting values for all parameters
+#'   in \code{Expr}. Names must match those used in \code{Expr} (e.g.,
+#'   \code{ai1}, \code{ai2}, \code{ai3}).  If \code{NULL} (the default),
+#'    \code{Dmethod} attempts to compute starting values automatically using
 #' @param kappa_max Positive numeric. Subjects whose per-subject Jacobian
 #'   condition number exceeds this threshold are excluded from MM/MMF
 #'   second-stage estimation. Default \code{1e4}.
@@ -91,10 +90,11 @@
 #' @importFrom expm sqrtm
 #' @importFrom stats nls nls.control coef model.matrix as.formula
 #' @export
-MM_base <- function(data, Expr, group, random, start,
+MM_base <- function(data, Expr, group, random,
+                    start     = NULL,
                     kappa_max = 1e4,
-                    RR_catof = "kappa",
-                    verbose = 1) {
+                    RR_catof  = "kappa",
+                    verbose   = 1) {
 
 
   # RR_catof validation
@@ -104,7 +104,7 @@ MM_base <- function(data, Expr, group, random, start,
 
   ## 0. Align random with start
   names(random) <- gsub("~.*| ", "", random)
-  if (missing(start)) {start <- .auto_start(data, Expr) }
+  if (is.null(start)) {start <- .auto_start(data, Expr) }
   STnames <- c(names(random), setdiff(names(start), names(random)))
   start   <-  start[STnames]
 
