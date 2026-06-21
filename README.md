@@ -9,7 +9,7 @@ This R package is for the following paper which is currently under review:
 The package can be installed directly from GitHub using:
 
 ```r
-install.packages("devtools")
-library(devtools)
-
+install.packages("remotes")
+library(remotes)
 install_github("germaine86/TestREnlme")
+```
