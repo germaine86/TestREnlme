@@ -54,8 +54,8 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'   \code{ai2 = B2 + bi2}, \code{ai3 = B3 + bi3}.
 #' @param start A named numeric vector of starting values for all parameters
 #'   in \code{Expr}. Names must match those used in \code{Expr} (e.g.,
-#'   \code{ai1}, \code{ai2}, \code{ai3}). If not supplied, \code{Dmethod}
-#'   attempts to compute starting values automatically using
+#'   \code{ai1}, \code{ai2}, \code{ai3}). If \code{NULL} (the default),
+#'    \code{Dmethod} attempts to compute starting values automatically using
 #'   \code{nls.multstart::nls_multstart()}, searching over multiple
 #'   initial values within a specified range (e.g. \eqn{\pm 10}) for each
 #'   parameter. If this step fails, provide \code{start} manually, or fit
@@ -149,7 +149,8 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #' @importFrom MASS ginv
 #' @importFrom ggplot2 ggplot aes geom_histogram geom_vline annotate labs theme_bw
 #' @export
-Dhypothesis_test <- function(data, Expr, group, random, start,
+Dhypothesis_test <- function(data, Expr, group, random,
+                             start     = NULL,
                              bi_out    = NULL,
                              method    = c("VLS", "MM", "MMF"),
                              Dhatt     = NULL,
@@ -182,7 +183,7 @@ Dhypothesis_test <- function(data, Expr, group, random, start,
   }
 
   ## --- Step 2: observed test statistic --------------------------------
-  if (missing(start)) start <- attr(Dhatt, "internal")$start_orig
+  if (is.null(start)) start <- attr(Dhatt, "internal")$start_orig
   if (is.null(Thatt)) Thatt <- Tstat(Dhatt, bi_out = bi_out)
   .vcat(verbose, 1, "\n  T_obs = ", round(Thatt, 6))
 
