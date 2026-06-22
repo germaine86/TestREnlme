@@ -9,7 +9,7 @@ Dhypothesis_test(
   Expr,
   group,
   random,
-  start,
+  start = NULL,
   bi_out = NULL,
   method = c("VLS", "MM", "MMF"),
   Dhatt = NULL,
@@ -45,8 +45,8 @@ For example, \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2",
 
 \item{start}{A named numeric vector of starting values for all parameters
 in \code{Expr}. Names must match those used in \code{Expr} (e.g.,
-\code{ai1}, \code{ai2}, \code{ai3}). If not supplied, \code{Dmethod}
-attempts to compute starting values automatically using
+\code{ai1}, \code{ai2}, \code{ai3}). If \code{NULL} (the default),
+\code{Dmethod} attempts to compute starting values automatically using
 \code{nls.multstart::nls_multstart()}, searching over multiple
 initial values within a specified range (e.g. \eqn{\pm 10}) for each
 parameter. If this step fails, provide \code{start} manually, or fit

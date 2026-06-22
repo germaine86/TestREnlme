@@ -16,7 +16,7 @@ A data frame with 204 rows (one per subject) and 13 columns:
 \source{
 Blozis, S. A. (2004). Structured latent curve models for the
 study of change in multivariate repeated measures.
-\emph{Psychological Methods}, \strong{9(3)}, 334--353.
+\emph{Psychological Methods}, \strong{9(3)}, 334.
 
 Used as a worked example in Uwimpuhwe, G., Drikvandi, R. and Blozis,
 S. A. (in preparation). TestREnlme: An R Package for Testing Random

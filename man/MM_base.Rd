@@ -9,7 +9,7 @@ MM_base(
   Expr,
   group,
   random,
-  start,
+  start = NULL,
   kappa_max = 10000,
   RR_catof = "kappa",
   verbose = 1
@@ -34,11 +34,10 @@ For example, \code{c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2",
 "ai3 ~ B3 + bi3")} specifies that \code{ai1 = B1 + bi1},
 \code{ai2 = B2 + bi2}, \code{ai3 = B3 + bi3}.}
 
-\item{start}{A named numeric vector of starting values for all \code{Expr}
-parameters. Names must match those used in \code{Expr} (the
-subject-specific parameter names, e.g., \code{ai1}, \code{ai2},
-\code{ai3}). Good starting values can be obtained from a
-preliminary call to \code{nls()} on the pooled data.}
+\item{start}{A named numeric vector of starting values for all parameters
+in \code{Expr}. Names must match those used in \code{Expr} (e.g.,
+\code{ai1}, \code{ai2}, \code{ai3}).  If \code{NULL} (the default),
+\code{Dmethod} attempts to compute starting values automatically using}
 
 \item{kappa_max}{Positive numeric. Subjects whose per-subject Jacobian
 condition number exceeds this threshold are excluded from MM/MMF
