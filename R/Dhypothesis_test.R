@@ -261,7 +261,7 @@ Dhypothesis_test <- function(data, Expr, group, random,
   pval       <- if (pvalue_num < 0.001) "< 0.001" else pvalue_num
 
   .vcat(verbose, 1,
-        "\n  p-value  = ", pval,
+        "\n  p-value  = ", if(is.numeric(pval)) round(pval,4) else pval,
         "\n  Decision : ", decision, "\n")
 
   ## --- return structure --------------------------------
@@ -336,7 +336,7 @@ print.Dtest <- function(x, ...) {
   cat("\nTestREnlme: Permutation test result\n")
   cat("  Tested RE   :",
       if (is.null(x$bi_out)) "All" else paste(x$bi_out, collapse = ", "), "\n")
-  cat("  T_obs       :", round(x$Tobs, 6), "\n")
+  cat("  T_obs       :", round(x$Tobs, 4), "\n")
   cat("  p-value     :", x$pvalue, "\n")
   cat("  Decision    :", x$Decision, "\n")
   invisible(x)
