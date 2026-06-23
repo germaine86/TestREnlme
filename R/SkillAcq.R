@@ -37,7 +37,8 @@
 #'
 #' @source Blozis, S. A. (2004). Structured latent curve models for the
 #'  study of change in multivariate repeated measures.
-#' \emph{Psychological Methods}, \strong{9(3)}, 334.
+#' \emph{Psychological Methods}, \strong{9(3)}, 334--353.
+#'  https://doi.org/10.1037/1082-989X.9.3.334
 #'
 #' Used as a worked example in Uwimpuhwe, G., Drikvandi, R. and Blozis,
 #' S. A. (in preparation). TestREnlme: An R Package for Testing Random
@@ -59,19 +60,14 @@
 #'                   "ai1 ~ B01 + B11 * wm2 + bi1",
 #'                   "ai2 ~ B02 + B12 * wm2 + bi2")
 #'
-#' ## Starting values from a preliminary pooled NLS fit
-#' start0  <- c(ai0 = 1, ai1 = 1, ai2 = -0.2)
-#' oi0     <- nls(Expr_learn, data = qrt1, start = as.list(start0),
-#'                algorithm = "port")
-#' start_learn <- coef(oi0)
 #'
 #' ## Estimate variance components (VLS) and test all three random effects
 #' DVLS_learn <- Dmethod(qrt1, Expr_learn, group = "id",
-#'                       random = random_learn, start = start_learn)
+#'                       random = random_learn, start = NULL)
 #' DVLS_learn[c("Dhat", "Sigma2", "Beta")]
 #'
 #' H_learn <- Dhypothesis_test(qrt1, Expr_learn, group = "id",
-#'                             random = random_learn, start = start_learn,
+#'                             random = random_learn, start = NULL,
 #'                             Dhatt = DVLS_learn, nperm = 200, seed = 1)
 #' H_learn$pvalue
 #' }
