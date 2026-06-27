@@ -172,17 +172,10 @@ Dhypothesis_test <- function(data, Expr, group, random,
   if (is.null(Dhatt)) {
     .vcat(verbose, 1, "\nDhypothesis_test: computing variance components ...")
     if(is.null(start)){
-<<<<<<< HEAD
       Dhatt <- Dmethod(data, Expr, group, random,
                        method = method, MM_base_obj = MM_base_obj,
                        kappa_max = kappa_max, RR_catof = RR_catof,
                        verbose = verbose)
-=======
-    Dhatt <- Dmethod(data, Expr, group, random,
-                     method = method, MM_base_obj = MM_base_obj,
-                     kappa_max = kappa_max, RR_catof = RR_catof,
-                     verbose = verbose)
->>>>>>> 32bc5d0348961a9898f3d3d95a7b061676061f8d
     }else{
       Dhatt <- Dmethod(data, Expr, group, random, start,
                        method = method, MM_base_obj = MM_base_obj,
