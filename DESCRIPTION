@@ -47,7 +47,8 @@ Suggests:
     knitr,
     rmarkdown,
     ggpubr (>= 0.4.0),
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    reshape2  (>= 1.4.4)
 VignetteBuilder: knitr
 URL: https://github.com/germaine86/TestREnlme
 BugReports: https://github.com/germaine86/TestREnlme/issues

@@ -121,7 +121,6 @@ user-specified subset, using the test statistic of Drikvandi et al.
 (2013) adapted for nonlinear mixed-effects models in Uwimpuhwe (2026).
 }
 \examples{
-\dontrun{
 d      <- as.data.frame(Theoph)
 Expr   <- conc ~ Dose * exp(ai2 + ai3 - ai1) *
             (exp(-Time * exp(ai3)) - exp(-Time * exp(ai2))) /
@@ -130,9 +129,12 @@ start  <- c(ai1 = -3.22, ai2 = 0.47, ai3 = -2.45)
 random <- c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2", "ai3 ~ B3 + bi3")
 DVLS  <- Dmethod(d, Expr, group = "Subject",
                    random = random, start = start)
+
+\donttest{
+## Permutation test (slow -- use nperm = 200 minimum for real use)
 H      <- Dhypothesis_test(d, Expr, group = "Subject",
                            random = random, start = start,
-                           Dhatt = DVLS, nperm = 200, seed = 1)
+                           Dhatt = DVLS, nperm = 20, seed = 1)
 H$pvalue
 H$plot
 }

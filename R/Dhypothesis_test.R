@@ -112,7 +112,6 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #'   }
 #'
 #' @examples
-#' \dontrun{
 #' d      <- as.data.frame(Theoph)
 #' Expr   <- conc ~ Dose * exp(ai2 + ai3 - ai1) *
 #'             (exp(-Time * exp(ai3)) - exp(-Time * exp(ai2))) /
@@ -121,9 +120,12 @@ Tstat <- function(Dobj, bi_out = NULL) {
 #' random <- c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2", "ai3 ~ B3 + bi3")
 #' DVLS  <- Dmethod(d, Expr, group = "Subject",
 #'                    random = random, start = start)
+#'
+#' \donttest{
+#' ## Permutation test (slow -- use nperm = 200 minimum for real use)
 #' H      <- Dhypothesis_test(d, Expr, group = "Subject",
 #'                            random = random, start = start,
-#'                            Dhatt = DVLS, nperm = 200, seed = 1)
+#'                            Dhatt = DVLS, nperm = 20, seed = 1)
 #' H$pvalue
 #' H$plot
 #' }
@@ -169,11 +171,11 @@ Dhypothesis_test <- function(data, Expr, group, random,
   ## --- Step 1: estimate D* if not supplied ---------------------------
   if (is.null(Dhatt)) {
     .vcat(verbose, 1, "\nDhypothesis_test: computing variance components ...")
-    if(missing(start)){
-    Dhatt <- Dmethod(data, Expr, group, random,
-                     method = method, MM_base_obj = MM_base_obj,
-                     kappa_max = kappa_max, RR_catof = RR_catof,
-                     verbose = verbose)
+    if(is.null(start)){
+      Dhatt <- Dmethod(data, Expr, group, random,
+                       method = method, MM_base_obj = MM_base_obj,
+                       kappa_max = kappa_max, RR_catof = RR_catof,
+                       verbose = verbose)
     }else{
       Dhatt <- Dmethod(data, Expr, group, random, start,
                        method = method, MM_base_obj = MM_base_obj,
@@ -261,7 +263,7 @@ Dhypothesis_test <- function(data, Expr, group, random,
   pval       <- if (pvalue_num < 0.001) "< 0.001" else pvalue_num
 
   .vcat(verbose, 1,
-        "\n  p-value  = ", pval,
+        "\n  p-value  = ", if(is.numeric(pval)) round(pval,4) else pval,
         "\n  Decision : ", decision, "\n")
 
   ## --- return structure --------------------------------
@@ -336,7 +338,7 @@ print.Dtest <- function(x, ...) {
   cat("\nTestREnlme: Permutation test result\n")
   cat("  Tested RE   :",
       if (is.null(x$bi_out)) "All" else paste(x$bi_out, collapse = ", "), "\n")
-  cat("  T_obs       :", round(x$Tobs, 6), "\n")
+  cat("  T_obs       :", round(x$Tobs, 4), "\n")
   cat("  p-value     :", x$pvalue, "\n")
   cat("  Decision    :", x$Decision, "\n")
   invisible(x)

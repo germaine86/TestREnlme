@@ -72,7 +72,9 @@ random <- c("ai1 ~ B1 + bi1", "ai2 ~ B2 + bi2", "ai3 ~ B3 + bi3")
 DVLS   <- Dmethod(d, Expr, group = "Subject",
                   random = random, start = start, method = "VLS")
 DVLS[c("Dhat", "Sigma2", "Beta")]
-BootSE <- bootstrap_se(DVLS, nboot = 200, type = "case", seed = NULL, verbose = 1)
+\donttest{
+BootSE <- bootstrap_se(DVLS, nboot = 20, type = "case", seed = NULL, verbose = 1)
+}
 
 }
 \references{

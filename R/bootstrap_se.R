@@ -66,7 +66,9 @@
 #' DVLS   <- Dmethod(d, Expr, group = "Subject",
 #'                   random = random, start = start, method = "VLS")
 #' DVLS[c("Dhat", "Sigma2", "Beta")]
-#' BootSE <- bootstrap_se(DVLS, nboot = 200, type = "case", seed = NULL, verbose = 1)
+#' \donttest{
+#' BootSE <- bootstrap_se(DVLS, nboot = 20, type = "case", seed = NULL, verbose = 1)
+#' }
 #'
 #' @importFrom stats sd
 #' @export
@@ -151,10 +153,10 @@ bootstrap_se <- function(Dobj, nboot = 200,
     ## --- Refit Dmethod on bootstrap sample -----------------------------
     Db <- tryCatch(
       suppressWarnings(
-      Dmethod(data_b, Expr, group, random, start,
-              method       = method,
-              is_permuting = FALSE,
-              verbose      = 0)
+        Dmethod(data_b, Expr, group, random, start,
+                method       = method,
+                is_permuting = FALSE,
+                verbose      = 0)
       ),
       error = function(e) NULL
     )

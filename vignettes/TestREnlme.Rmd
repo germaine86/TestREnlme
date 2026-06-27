@@ -1,0 +1,401 @@
+---
+title: "TestREnlme: Testing Random Effects in Linear and Nonlinear Mixed-Effects Models"
+author: "Germaine Uwimpuhwe, Reza Drikvandi, Shelley A. Blozis"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{TestREnlme}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment   = "#>",
+  fig.width  = 7,
+  fig.height = 4,
+  warning   = FALSE,
+  message   = FALSE
+)
+```
+
+# Introduction
+**TestREnlme** provides a nonparametric framework for testing random effects in
+linear mixed-effects models (LMEMs) and nonlinear mixed-effects models (NLMEMs)
+with additive random error. The package implements the permutation tests of
+Uwimpuhwe, Drikvandi and Blozis (2026, *Statistics inMedicine*, 
+doi:[10.1002/sim.70605](https://doi.org/10.1002/sim.70605)), allowing users to 
+test all random effects jointly or selected subsets of random effects without
+relying on distributional assumptions. The package provides three distribution-free 
+variance component estimators:
+
+- **VLS (Variance Least Squares, default)**: does not require subject-specific
+  model fitting and is robust to convergence issues associated with individual-level estimation.
+- **MM (Method of Moments, two-stage)**: a two-stage estimator that uses subject-specific 
+  nonlinear least-squares fits in the first stage.
+- **MMF (Method of Moments with two-stage and First-Order Approximation)**: a two-stage estimator
+  incorporating a first-order approximation while retaining the two-stage estimation framework.
+
+Key features of **TestREnlme**:
+
+- No distributional assumptions on random effects or errors.
+- Tests all random effects jointly or any user-specified subset.
+- Supports the inclusion of subject-level covariates when applicable.
+- All plots are `ggplot2` objects, directly customisable.
+
+The package can be installed from CRAN using:
+
+```{r install, eval = FALSE}
+install.packages("TestREnlme")
+```
+
+```{r load}
+library(TestREnlme)
+```
+
+
+# Model Formulation
+
+The NLMEM is
+$$
+Y_i = f_i(a_i, \gamma) + \varepsilon_i, \qquad a_i = A_i\beta + b_i,
+$$
+where $f_i(\cdot)$ is a known nonlinear function, $\gamma$ is a vector of 
+common fixed parameters, and $\beta$ contains fixed effects paired with 
+random effects structure. The random effects $b_i$ have mean zero and 
+covariance $D_* = \sigma^2 D$, and the random errors $\varepsilon_i$ have
+mean zero and variance $\sigma^2$. if $f_i(\cdot)=X_i\beta+Z_ib_i$ the
+NLMEM reduces to the LMEM.
+
+The model is defined through the following arguments:
+
+- `Expr`: the formula for $f_i(a_i, \gamma)$, using subject-specific parameter
+   names (e.g.\ `ai1`, `ai2`, `ai3`) together with any common parameters $\gamma$
+- `random`: a character vector of two-sided formula strings mapping each
+  subject-specific parameter to its fixed + random structure
+  (e.g.\ `"ai1 ~ B1 + bi1"` meaning $a_{i1} = \beta_1 + b_{i1}$)
+- `start`: a named numeric vector of starting values for all parameters in 
+  `Expr`. If not supplied, the package automatically computes suitable 
+  initial values.
+  
+  
+# Theophylline Pharmacokinetic Data
+
+## Data and Model
+
+The built-in `Theoph` dataset contains serum concentration measurements for
+12 patients. The one-compartment pharmacokinetic model is:
+$$
+Y_{ij} = 
+ \frac{D_i \exp(a_{i2} + a_{i3} - a_{i1}) \big[\exp(-e^{a_{i3}} T_{ij}) - \exp(-e^{a_{i2}} T_{ij})\big]}
+           {\exp(a_{i2}) - \exp(a_{i3})} + \varepsilon_{ij}
+$$
+where $a_{i1} = \beta_1 + b_{i1}$, $a_{i2} = \beta_2 + b_{i2}$, and
+$a_{i3} = \beta_3 + b_{i3}$ are the subject-specific log clearance,
+log absorption rate, and log elimination rate, respectively.
+
+## Exploratory Plot
+
+```{r theoph-profiles, fig.cap = "Individual concentration profiles with mean (black and bold)."}
+d      <- as.data.frame(Theoph)
+p <- plot_profiles(d, group = "Subject", time = "Time",
+                   response = "conc",
+                   title = "Theophylline: individual profiles")
+## Colour by subject using ggplot2 customisation
+p + ggplot2::aes(colour = .data$`.group`) +
+    ggplot2::scale_colour_manual(values = rainbow(12), guide = "none")
+```
+
+
+## Testing All Random Effects
+
+### Step 1: Model preparation 
+```{r theoph-setup}
+Expr   <- conc ~ Dose * exp(ai2 + ai3 - ai1) *
+            (exp(-Time * exp(ai3)) - exp(-Time * exp(ai2))) /
+            (exp(ai2) - exp(ai3))
+
+random <- c("ai1 ~ B1 + bi1",
+            "ai2 ~ B2 + bi2", 
+            "ai3 ~ B3 + bi3")
+
+start  <- c(ai1 = -3.22, ai2 = 0.47, ai3 = -2.45)
+
+```
+
+
+
+
+### Step 2: Variance components estimation
+
+```{r theoph-vls}
+## VLS (default: no subject-specific estimation)
+DVLS <- Dmethod(d, Expr, group = "Subject",
+                random = random, start = start,
+                verbose = 0)
+summary(DVLS)
+```
+
+When both MM and MMF are needed on the same data, the expensive first-stage NLS
+fits can be computed once via `MM_base()` and shared between both methods,
+substantially reducing computation time:
+
+```{r theoph-mm}
+mb   <- MM_base(d, Expr, group = "Subject",
+                random = random, start = start,
+                kappa_max = 1e4, verbose = 1)
+DMM  <- Dmethod(d, Expr, group = "Subject",
+                random = random, start = start,
+                method = "MM", MM_base_obj = mb, verbose = 0)
+
+
+DMMF <- Dmethod(d, Expr, group = "Subject",
+                random = random, start = start,
+                method = "MMF", MM_base_obj = mb, verbose = 0)
+summary(DMM)
+summary(DMMF)
+## Compare variance component estimates across methods
+plot_variance(list(VLS = DVLS, MM = DMM, MMF = DMMF), component = "diagonal")
+```
+
+
+### Step 3: Bootstrap standard errors.
+Once variance components have been estimated, uncertainty in all model
+parameters can be assessed using `bootstrap_se()`:
+
+```{r theoph-boot, eval = FALSE}
+BVLS <- bootstrap_se(DVLS, nboot = 200, seed = 42)
+print(BVLS)
+```
+
+
+
+### Step 4: Permutation tests
+
+We consider three permutation tests: (i) testing all random effects jointly,
+(ii) testing $b_{i1}$ and $b_{i3}$ while retaining $b_{i2}$, and (iii) testing
+$b_{i3}$ alone while retaining $b_{i1}$ and $b_{i2}$. Since all tests use the
+same variance estimate, `Dhatt` is computed once via `Dmethod()` and reused
+across all calls. 
+
+```{r theoph-tests}
+## Test 1: H0: D = 0 (all RE absent)
+HVLS <- Dhypothesis_test(d, Expr, group = "Subject",
+                          random = random, start = start,
+                          Dhatt = DVLS, nperm = 200, seed = 1,
+                          verbose = 0)
+cat("Test 1 - p-value:", HVLS$pvalue, "| Decision:", HVLS$Decision, "\n")
+
+## Test 2: H0: d11 = d13 = d33 = 0 given  bi2 retained in the model
+HVLS13 <- Dhypothesis_test(d, Expr, group = "Subject",
+                            random = random, start = start,
+                            bi_out = c("bi1", "bi3"),
+                            Dhatt = DVLS, nperm = 200, seed = 1,
+                            verbose = 0)
+cat("Test 2 - p-value:", HVLS13$pvalue, "| Decision:", HVLS13$Decision, "\n")
+
+## Test 3: H0: d33 = 0 given bi1 and bi2 retained in the model
+HVLS3 <- Dhypothesis_test(d, Expr, group = "Subject",
+                           random = random, start = start,
+                           bi_out = "bi3",
+                           Dhatt = DVLS, nperm = 200, seed = 1,
+                           verbose = 0)
+cat("Test 3 - p-value:", HVLS3$pvalue, "| Decision:", HVLS3$Decision, "\n")
+```
+
+###  Permutation histograms
+
+```{r theoph-hist, fig.width = 10, fig.height = 4, fig.cap = "Permutation null distributions for the three tests."}
+library(ggpubr)
+ggarrange(
+  plot_perm_hist(HVLS,   title = "H0: D = 0"),
+  plot_perm_hist(HVLS13, title = "H0: d11=d13=d33=0"),
+  plot_perm_hist(HVLS3,  title = "H0: d33=0"),
+  nrow = 1
+)
+```
+
+Test 1 and Test 2 strongly reject $H_0$ ($p < 0.001$). Test 3 fails to reject
+($p =$ `r HVLS3$pvalue`), suggesting the elimination rate $K_{ei}$ can be
+treated as a common fixed parameter across subjects.
+
+
+## Reduced Random Effect Strureture.
+Since $b_{i3}$ is not required, we refit the model retaining only $b_{i1}$
+and $b_{i2}$. The parameter $B_3$ now appears directly in `Expr2` as a common
+fixed parameter.
+
+### Step 1: Model preparation 
+```{r theoph-reduced-step1}
+Expr2   <- conc ~ Dose * exp(ai2 + B3 - ai1) *
+             (exp(-Time * exp(B3)) - exp(-Time * exp(ai2))) /
+             (exp(ai2) - exp(B3))
+random2 <- c("ai1 ~ B1 + bi1",
+             "ai2 ~ B2 + bi2")
+start2 <- c(ai1 = -3.22, ai2 = 0.47, B3 = -2.45)
+```
+
+### Step 2: Variance components estimation
+```{r theoph-reduced-step2}
+DVLS_C <- Dmethod(d, Expr2, group = "Subject",
+                  random = random2, start = start2,
+                  verbose = 0)
+summary(DVLS_C)
+```
+
+#### Diagnostic plots
+Observed versus fitted values can be visualised using `plot_fitted()`:
+In the example below, we set `subjects = NULL` (the default), meaning that all
+subjects are plotted. Alternatively, a subset of subjects can be selected for
+visualisation.
+
+```{r theoph-fitted, fig.cap = "Observed vs fitted values for all 12 subjects (reduced model)."}
+plot_fitted(DVLS_C, time = "Time", subjects = NULL, overlay = TRUE)
+```
+
+Calling `plot()` on a `Dmethod` object produces all relevant diagnostic plots
+(profiles, fitted values, raw and standardised residuals; and condition-number
+plot for VLS based  objects):
+
+
+```{r s3-dmethod, eval = FALSE, }
+## Shows: profiles, fitted, residuals (raw + standardised)
+## For MM/MMF also shows condition-number plot
+plot(x=DVLS_C, time = "Time")
+```
+
+#### Condition-number diagnostics
+For MM or MMF fits, `plot_condition()` shows the per-subject condition numbers
+with the exclusion threshold. In the reduced model, all 12 subjects are well
+below the threshold `kappa_max = 1e4`:
+
+```{r theoph-cond, fig.cap = "Condition numbers for the reduced MM model. All subjects are below the exclusion threshold."}
+DMM_C <- Dmethod(d, Expr2, group = "Subject",
+                 random = random2, start = start2,
+                 method = "MM", verbose = 0)
+plot_condition(DMM_C, kappa_max = 1e4)
+```
+
+
+## Step 3: Bootstrap standard errors.
+Bootstrap standard errors follow the same codes as in the full model, 
+replacing `DVLS` with `DVLS_C` in the `bootstrap_se()` call.
+
+
+## Step 4: Permutation
+
+Both retained random effects are highly significant:
+
+```{r theoph-reduced-test}
+## Test for the need of all random effects in the reduced model
+HC <- Dhypothesis_test(d, Expr2, group = "Subject",
+                        random = random2, start = start2,
+                        Dhatt = DVLS_C, nperm = 200, seed = 1,
+                        verbose = 0)
+cat("Testing of all RE (bi1, bi2) - p-value:", HC$pvalue, "| Decision:", HC$Decision, "\n")
+
+# ## Test for the need of bi1 given the presence of bi2 in the reduced model
+HC1 <- Dhypothesis_test(d, Expr2, group = "Subject",
+                        random = random2, start = start2,bi_out = "bi1",
+                        Dhatt = DVLS_C, nperm = 200, seed = 1,
+                        verbose = 0)
+cat("Testing bi1 give bi2 in the model- p-value:", HC1$pvalue, "| Decision:", HC1$Decision, "\n")
+```
+
+
+
+## Skill Acquisition Data 
+
+The `SkillAcq` dataset, available in the **TestREnlme** Package, contains 
+log-transformed response latencies for $N = 204$ subjects across $J = 11$
+trial blocks, with a subject-level working memory (WM) covariate `wm2`. 
+The nonlinear learning model is:
+$$
+Y_{ij} = a_{i1} - (a_{i1} + a_{i0})\exp(a_{i2}\,T_{ij}) + \varepsilon_{ij}
+$$
+where $a_{i0}$ is the initial offset, $a_{i1}$ the asymptote, and $a_{i2}$
+the learning rate. Each parameter has a WM regression component:
+$a_{ik} = \beta_{0k} + \beta_{1k} WM2_i + b_{ik}$.
+
+```{r skill-setup}
+## Reshape from wide to long format
+library(reshape2)
+data("SkillAcq")
+qrt1 <- melt(SkillAcq, id.vars = c("id", "wm2"),
+             variable.name = "ly", value.name = "Y")
+qrt1$t <- as.numeric(sub("ly", "", qrt1$ly))
+
+
+#model formulation
+Expr_learn  <- Y ~ ai1 - (ai1 + ai0) * exp(ai2 * t)
+random_learn <- c("ai0 ~ B0 + B01 * wm2 + bi0",
+                  "ai1 ~ B1 + B11 * wm2 + bi1",
+                  "ai2 ~ B2 + B21 * wm2 + bi2")
+```
+
+We first fit the full with MM to assess subject-specific convergence, 
+and the starting values are automatically compute.
+
+```{r skill-full}
+## MM estimator 
+DMM_all <- Dmethod(data=qrt1, Expr=Expr_learn, group = "id",
+                   random = random_learn, method = "MM")
+summary(DMM_all)
+```
+
+## Full Model (Three Random Effects)
+
+The full model excludes 61 subjects (24 high-kappa + 37 non-converged);
+this is also the case for the MMF approach. The figure below, produced
+using `plot_condition()`, displays the condition-number diagnostic, which
+illustrates this practical situation where the default method **VLS**
+should be used (as it uses all 204 subjects) and not MM nor MMF. The
+subsequent analysis should therefore proceed using VLS following Steps 1 to 4
+as shown in the theophylline example above.
+
+
+```{r skill-full-plot , fig.cap="Skill acquisition data: the per-subject condition numbers from MM for the full three-random-effects model, sorted in decreasing order for converged subjects. The subjects above the dashed line (red dots) were excluded from MM second-stage estimation, and the subjects below (blue dots) were retained and used in the analysis."}
+
+## Condition number plot -- subjects above threshold excluded
+set.seed(123)
+NS <- sort(sample(1:204, 20))
+plot_condition(DMM_all, kappa_max = 1e4)
+```
+
+
+
+
+
+# Summary of Key Functions
+
+| Function | Purpose |
+|---|---|
+| `Dmethod()` | Estimate $\hat{D}_*$ and $\hat{\sigma}^2$ (VLS, MM, MMF) |
+| `Tstat()` | Compute observed test statistic $T_{\rm obs}$ |
+| `Dhypothesis_test()` | Run permutation test; returns $p$-value and histogram |
+| `MM_base()` | Pre-compute shared first-stage for MM and MMF |
+| `bootstrap_se()` | Bootstrap standard errors for all estimates |
+| `plot_profiles()` | Individual profile plot with mean |
+| `plot_fitted()` | Fitted curves overlaid on observed data |
+| `plot_residuals()` | Residual diagnostic plots |
+| `plot_condition()` | Condition number diagnostic (MM/MMF) |
+| `plot.Dmethod()` |S3 plotting method for\code{Dmethod} objects: produces profiles, fitted values, residuals, and condition numbers|
+| `plot_variance()` | Compare variance estimates across methods |
+| `plot_perm_hist()` | Permutation null distribution histogram |
+
+# References
+
+Uwimpuhwe, G., Drikvandi, R., and Blozis, S.A. (2026).
+Testing random effects in nonlinear mixed-effects models.
+*Statistics in Medicine*.
+<https://doi.org/10.1002/sim.70605>
+
+Uwimpuhwe, G., Drikvandi, R. and Blozis, S. A. (in preparation).
+TestREnlme: An R Package for Testing Random Effects in Nonlinear
+Mixed-Effects Models.
+
+Demidenko, E. (2013). *Mixed Models: Theory and Applications with R*. Wiley.
+
+Drikvandi, R., Verbeke, G., Khodadadi, A. and Nia, V. P. (2013).
+Testing multiple variance components in linear mixed-effects models.
+*Biostatistics*, **14**(1), 144--159.
