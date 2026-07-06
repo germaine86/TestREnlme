@@ -6,10 +6,14 @@ This R package is for the following paper which is currently under review:
 *"TestREnlme: An R Package for Testing Random Effects in Nonlinear Mixed-Effects Models."*  
 *Journal of Statistical Software.* (Under review)
 
-The package can be installed directly from GitHub using:
+The package is available on CRAN and can be installed with:
 
 ```r
-install.packages("remotes")
-library(remotes)
-install_github("germaine86/TestREnlme")
+install.packages("TestREnlme")
+```
+
+You can then load it with:
+
+```r
+library(TestREnlme)
 ```
